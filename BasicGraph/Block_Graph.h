@@ -6,9 +6,12 @@
 #include<set>
 #include"Graph.h"
 #include <windows.h>
+
+//假定为图中全部权重的均值
 static  int  trunkPreWeight = 10;
+
 //生成0到N-1之间的随机数
-inline float rand_n(int N) {
+int rand_n(int N) {
 	//srand(time(NULL));//设置随机数种子，使每次产生的随机序列不同	
 	LARGE_INTEGER seed;
 	QueryPerformanceFrequency(&seed);
@@ -16,6 +19,7 @@ inline float rand_n(int N) {
 	srand(seed.QuadPart);
 	return rand() % N;
 }
+
 template<typename T, typename E>//T节点编号，E值/权重
 class BlockGraph :public UndiGraph<T,E> {
 	int block;//block num 从1开始
@@ -94,10 +98,10 @@ void BlockGraph<T, E>::Display()
 	return;
 }
 
-//
+//分区的同时负责生成trunkline
 template<typename T, typename E>
 bool BlockGraph<T, E>::sepBlock() {
-	for (int i = 1; i < block; ++i) {
+	for (int i = 1; i <= block; ++i) {
 		UndiGraph<T, E> tmp;
 		for (auto s : rec[i]) {
 			if(this->migrate(tmp, s, i)) continue;
@@ -109,6 +113,17 @@ bool BlockGraph<T, E>::sepBlock() {
 		}
 		subBlockMap[i] = tmp;
 		//subBlockMap.insert({ i, tmp });//插入对应的街区子图
+	}
+	vector<int> tmpBlock;
+	//用一个vector存储目前的所有block
+	for (int i = 1; i <= block; ++i) tmpBlock.emplace_back(i);
+	//每次把vector中第一个元素删除，防止生成trunkline时候有重复的 如：{1，2}和{2，1}
+	while (!tmpBlock.empty()) {
+		int current = tmpBlock[0];
+		tmpBlock.erase(tmpBlock.begin());
+		for (int s : tmpBlock) {
+			genTrunkLine(current, s);
+		}
 	}
 	return true;
 }
@@ -249,6 +264,7 @@ vector<int> BlockGraph<T, E>::getDiffBlockTrunkWeight(int b1,int b2) {
 //只能根据给定block生成  如果存在则不能重复生成 ，后续可追加insertTrunkLine接口
 template<typename T, typename E>
 void BlockGraph<T, E>::genTrunkLine(int b1, int b2) {
+	//map<pair<int, int>, vector<int> >  trunkLine;//跨区干线
 	int x = trunkLine.count({ b1,b2 });
 	int y = trunkLine.count({ b2,b1 });
 	if (x != 0 || y != 0) return;
@@ -257,7 +273,16 @@ void BlockGraph<T, E>::genTrunkLine(int b1, int b2) {
 	int tmp = rand_n(2);//inline function
 	if (tmp == 0) lines = 2;
 	else lines = 3;
-
+	//先在trunkline中放入空vector
+	trunkLine[pair<int, int>(b1, b2)] = {};
+	//2倍trunkPreWeight
+	int weight = 2 * (rand_n(trunkPreWeight) + trunkPreWeight);
+	while (lines--) {
+		//注：此处无论是否写pair<int, int>，在insert时候都会将b1，b2强转为int型
+		//pair<int, int>(b1, b2)
+		trunkLine[{b1, b2}].emplace_back(weight);
+		weight /= 2;
+	}
 }
 //template<typename T, typename E>
 //int BlockGraph<T, E>::getNext(int cur,int des) {
