@@ -732,7 +732,7 @@ pair<myType, myType> selectNextRoute(int before_pos, int current_pos) {
 	return pair<myType, myType>{tmp_pos, cur_weight};
 }
 
-//此处cur_vertex  为跨区之前上一个区的id  相当于保存了上一个区的出口
+//此处cur_vertex  为跨区之前上一个区的id  相当于保存了上一个区的出口  des_vertex为终点block
 void UpdateCurOd(int antid, myType cur_vertex, myType des_vertex) {
 	int cur_id = g.getBlockid(cur_vertex);
 	int des_id = g.getBlockid(des_vertex);
@@ -741,10 +741,17 @@ void UpdateCurOd(int antid, myType cur_vertex, myType des_vertex) {
 		return;
 	}
 	auto res = g.getBorderBlock(cur_id, des_id);
+	//如果相邻block有终点 提前返回
+	for (auto s : res) {
+		if (s == des_id) {
+			curOD[antid] = pair<int, int>{ cur_id ,s };
+			return;
+		}
+	}
 	int size = res.size();
 	//此处为随即选择下一个区 ************* 待改进
 	int ret = rand_n(size);
 	int nex_id = res[ret];
 	curOD[antid] = pair<int, int>{ cur_id ,nex_id };
-
+	return;
 }
