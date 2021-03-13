@@ -1,27 +1,27 @@
 #include"Graph.h"
 #include"path.h"
 #include"Block_Graph.h"
+#include"acs.h"
 
-UndiGraph<int, float> G(71);
+UndiGraph<int, float> Graph(71);
 //Node<int,int>* pp() {
 //	auto_ptr<Node<int, int>> tmpp(new Node<int, int>(0, 0);
 //	return tmpp;
 //}
 
 int main() {
-	//vector<int> tmpppp{ 1,1,1 };
-	BlockGraph<int, int> TMP(10, 2, 2);
+	BlockGraph<int, int> TMP(10, 1, 3);
 	TMP.InputfileGraph("G.txt");
 	auto borderres = TMP.getBorderBlock(1, 4);
 	auto idres = TMP.getBlockid(4);
-	if (TMP.sepBlock()) cout << "seperate sucess" << endl;
+	
 	TMP.Display();
 	TMP.subDisplay();
 	vector<int> vv;
-	G.InputfileGraph("Dj.txt");//C:/Users/shijian/Desktop/     
+	Graph.InputfileGraph("Dj.txt");//C:/Users/shijian/Desktop/     
 	int target = 48;
-	auto k = G.getedgematrix();
-	int num = G.getnumVertexes();
+	auto k = Graph.getedgematrix();
+	int num = Graph.getnumVertexes();
 	vector<int> d(num);
 	vector<int> p(num, -1);
 	dijkstra(num, 32, p, d, k);
@@ -36,10 +36,10 @@ int main() {
 	//G.Display();
 	//G.BFSTraverse(target);
 	vector<int> v;
-	v = G.getAllvertex();
+	v = Graph.getAllvertex();
 	for (auto s:v) {
 		vector<int> ans;
-		ans = G.pathTo(target, s);/// 需要修改
+		ans = Graph.pathTo(target, s);/// 需要修改
 		for (auto t:ans) {
 			cout << "->" << t;
 		}

@@ -29,8 +29,10 @@ class BlockGraph :public UndiGraph<T,E> {
 	unordered_map<int, vector<T> > rec; //vector 存储对应block的节点编号—————int 存储街区编号
 	unordered_map<int, vector<T> > borderPoints;   //用来存储每个区的边界点
 	map<int, UndiGraph<T, E> > subBlockMap;//用来存储分割后的小图 
-	map<pair<int, int>, vector<int> >  trunkLine;//跨区干线，目前不关注细分路径，pair<int, int>为起始区到目标区  vector<int>目前存储  应将每组block作为一个pair
-	
+	//map<pair<int, int>, vector<int> >  trunkLine;//跨区干线，目前不关注细分路径，pair<int, int>为起始区到目标区  vector<int>目前存储  应将每组block作为一个pair
+	map<pair<int, int>, vector<pair<T,E> > >  trunkLine;//干线更新版本,vector<pair<int,int> >存储每一组trunkline,weight可以通过getWeight获取
+
+
 public:
 	BlockGraph();//无参构造
 	explicit BlockGraph(int size, int _row = 4, int _col =4);//有参构造   **常用**
@@ -46,8 +48,10 @@ public:
 	void subDisplay();
 	bool migrate(UndiGraph<T, E>& G, T vertex,int);//将大图分割
 
-	vector<int> getDiffBlockTrunkWeight(int, int);// 获取两个block之间的干线权重   
-	void genTrunkLine(int, int);//生成TrunkLine的值  目前是随机生成  每两个区之间生成2或3条路径  
+	//vector<int> getDiffBlockTrunkWeight(int, int);// 获取两个block之间的干线权重   
+	//void genTrunkLine(int, int);//生成TrunkLine的值  目前是随机生成  每两个区之间生成2或3条路径  
+	bool handleTrunkLine(ifstream&);
+	pair<T,E> getBlockTrunkLine(int, int, T);
 };
 
 
@@ -114,6 +118,29 @@ bool BlockGraph<T, E>::sepBlock() {
 		subBlockMap[i] = tmp;
 		//subBlockMap.insert({ i, tmp });//插入对应的街区子图
 	}
+	for (auto it = this->vertex_table.begin(); it != this->vertex_table.end(); it++) {
+		Node<T, E>& tmpNode = *(it->second);
+		T cur_node = tmpNode.value;
+		int block_id = getBlockid(cur_node);
+		auto* cur = tmpNode.next;
+		while (cur) {
+			T tmp_data = cur->data;
+			int tmp_id = getBlockid(tmp_data);
+			//如果该边的 起始节点和终点不在同一个block
+			if (tmp_id != block_id) {
+				if (this->subBlockMap[block_id].border_map.count(tmp_id) != 0) {
+					this->subBlockMap[block_id].border_map[tmp_id].emplace_back(pair<T, T>{ cur_node ,tmp_data });
+				}
+				else {
+					vector<pair<T, T> > tmp_vec;
+					tmp_vec.emplace_back(pair<T, T>{ cur_node ,tmp_data });
+					this->subBlockMap[block_id].border_map[tmp_id] = tmp_vec;
+				}
+			}
+			cur = cur->next;
+		}
+	}
+
 	vector<int> tmpBlock;
 	//用一个vector存储目前的所有block
 	for (int i = 1; i <= block; ++i) tmpBlock.emplace_back(i);
@@ -122,7 +149,7 @@ bool BlockGraph<T, E>::sepBlock() {
 		int current = tmpBlock[0];
 		tmpBlock.erase(tmpBlock.begin());
 		for (int s : tmpBlock) {
-			genTrunkLine(current, s);
+			//genTrunkLine(current, s);
 		}
 	}
 	return true;
@@ -160,7 +187,14 @@ void BlockGraph<T, E>::InputfileGraph(string filename) {
 		}
 		this->InsertEdge(vertex1, vertex2, weight);
 	}
-	cout << "InputfileGraph success" << '\a'<<endl;
+
+	bool test = sepBlock();
+	if (test) cout << "sepBlock() sucess" << endl;
+	else cout << "sepBlock() failed" << endl;
+	bool testf = handleTrunkLine(fin);
+	if(testf) cout << "handleTrunkLine() sucess" << endl;
+	else cout << "handleTrunkLine() failed********" << endl;
+	cout << "InputfileGraph finished" << '\a'<<endl;
 	return;
 }
 
@@ -222,7 +256,7 @@ bool BlockGraph<T, E>::migrate(UndiGraph<T, E>& G, T vertex,int blockId) {
 	int pos = this->getVertexPos(vertex);//获取节点编号
 	listpoint<T, E>* ptr = this->vertex_table[pos]->next;//获取单链表头节点
 	//vector<T> adjVertex = this->Adj(vertex);
-	vector<T> adjVertex = getBlockPoint(vertex);
+	vector<T> adjVertex = getBlockPoint(blockId);
 	set<T> setVertex(adjVertex.begin(), adjVertex.end());
 	while (ptr != nullptr) {
 		//进行筛选，只对在该block的点有关的边进行 migrate
@@ -247,8 +281,69 @@ vector<T> BlockGraph<T, E>::getBlockPoint(int block) {
 	return {};
 }
 
+//template<typename T, typename E>
+//vector<int> BlockGraph<T, E>::getDiffBlockTrunkWeight(int b1,int b2) {
+//	int x = trunkLine.count({ b1,b2 });
+//	int y = trunkLine.count({ b2,b1 });
+//	//先判断map中有没有这两个区的trunk weight
+//	if (x == 0 && y == 0) {
+//		//没有则报错
+//		cerr << "error in BlockGraph<T, E>::getDiffBlockTrunkWeight while get:" << b1 << ':' << b2 << endl;
+//		return {};
+//	}
+//	if (x == 0) return trunkLine[{b2, b1}];
+//	else return trunkLine[{b1, b2}];
+//}
+
+//只能根据给定block生成  如果存在则不能重复生成 ，后续可追加insertTrunkLine接口
+//template<typename T, typename E>
+//void BlockGraph<T, E>::genTrunkLine(int b1, int b2) {
+//	//map<pair<int, int>, vector<int> >  trunkLine;//跨区干线
+//	int x = trunkLine.count({ b1,b2 });
+//	int y = trunkLine.count({ b2,b1 });
+//	if (x != 0 || y != 0) return;
+//	//此处开始选择生成两条trunk还是三条trunk
+//	int lines;
+//	int tmp = rand_n(2);//inline function
+//	if (tmp == 0) lines = 2;
+//	else lines = 3;
+//	//先在trunkline中放入空vector
+//	trunkLine[pair<int, int>(b1, b2)] = {};
+//	//2倍trunkPreWeight
+//	int weight = 2 * (rand_n(trunkPreWeight) + trunkPreWeight);
+//	while (lines--) {
+//		//注：此处无论是否写pair<int, int>，在insert时候都会将b1，b2强转为int型
+//		//pair<int, int>(b1, b2)
+//		trunkLine[{b1, b2}].emplace_back(weight);
+//		weight /= 2;
+//	}
+//}
+
+//根据给定的b1和b2，以及b1的边界点vertex，找到通往b2的trunkline
+//返回参数first为目标点，second为权重
+
 template<typename T, typename E>
-vector<int> BlockGraph<T, E>::getDiffBlockTrunkWeight(int b1,int b2) {
+bool BlockGraph<T, E>::handleTrunkLine(ifstream& fin) {
+	int num;
+	fin >> num;
+	while (num--) {
+		int x, y, weight;
+		fin >> x >> y ;
+		int bx = getBlockid(x);
+		int by = getBlockid(y);
+		int xc = trunkLine.count({ bx,by });
+		int yc = trunkLine.count({ by,bx });
+		if (yc == 0 && xc == 0) trunkLine.emplace(pair<int,int>{ bx,by }, vector<pair<T, E> >{ { x, y }});
+		else {
+			if (yc == 0) trunkLine[{bx, by}].emplace_back(pair<int,int>{ x,y });
+			else trunkLine[{by, bx}].emplace_back(pair<int, int>{ x,y });
+		}
+	}
+	if (!(fin >> num)) return true;
+	else return false;
+}
+template<typename T, typename E>
+pair<T, E>  BlockGraph<T, E>::getBlockTrunkLine(int b1, int b2, T vertex) {
 	int x = trunkLine.count({ b1,b2 });
 	int y = trunkLine.count({ b2,b1 });
 	//先判断map中有没有这两个区的trunk weight
@@ -257,32 +352,21 @@ vector<int> BlockGraph<T, E>::getDiffBlockTrunkWeight(int b1,int b2) {
 		cerr << "error in BlockGraph<T, E>::getDiffBlockTrunkWeight while get:" << b1 << ':' << b2 << endl;
 		return {};
 	}
-	if (x == 0) return trunkLine[{b2, b1}];
-	else return trunkLine[{b1, b2}];
-}
-
-//只能根据给定block生成  如果存在则不能重复生成 ，后续可追加insertTrunkLine接口
-template<typename T, typename E>
-void BlockGraph<T, E>::genTrunkLine(int b1, int b2) {
-	//map<pair<int, int>, vector<int> >  trunkLine;//跨区干线
-	int x = trunkLine.count({ b1,b2 });
-	int y = trunkLine.count({ b2,b1 });
-	if (x != 0 || y != 0) return;
-	//此处开始选择生成两条trunk还是三条trunk
-	int lines;
-	int tmp = rand_n(2);//inline function
-	if (tmp == 0) lines = 2;
-	else lines = 3;
-	//先在trunkline中放入空vector
-	trunkLine[pair<int, int>(b1, b2)] = {};
-	//2倍trunkPreWeight
-	int weight = 2 * (rand_n(trunkPreWeight) + trunkPreWeight);
-	while (lines--) {
-		//注：此处无论是否写pair<int, int>，在insert时候都会将b1，b2强转为int型
-		//pair<int, int>(b1, b2)
-		trunkLine[{b1, b2}].emplace_back(weight);
-		weight /= 2;
+	if (x == 0) {
+		for (pair<T, E> s : trunkLine[{b2, b1}]) {
+			if (s.first == vertex) {
+				return s;
+			}
+		}
 	}
+	else if (y == 0) {
+		for (pair<T, E> s : trunkLine[{b1, b2}]) {
+			if (s.first == vertex) {
+				return s;
+			}
+		}
+	}
+	return {};
 }
 //template<typename T, typename E>
 //int BlockGraph<T, E>::getNext(int cur,int des) {

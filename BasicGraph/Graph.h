@@ -83,7 +83,8 @@ public:
 };
 
 template<typename T, typename E>
-Graph<T, E>::Graph(int size):maxVertexes(size){}
+Graph<T, E>::Graph(int size) :maxVertexes(size) {}
+
 template<typename T,typename E>
 Graph<T, E>::Graph(const Graph<T,E>& g) {
 	maxVertexes = g.maxVertexes;
@@ -93,6 +94,7 @@ Graph<T, E>::Graph(const Graph<T,E>& g) {
 	Directed = g.Directed;
 	Vertex_value = g.Vertex_value;
 }
+
 template<typename T, typename E>
 Graph<T,E>& Graph<T, E>::operator=(const Graph& rhs) {
 	cout << "Graph operator= called" << endl;
@@ -220,6 +222,8 @@ protected:
 	map<int, Node<T, E>*> vertex_table;		//顶点序号和顶点对象映射  邻接表  只有每个链表头结点   注意是int序号的映射 不是T
 	unordered_map<T, vector<int> >  edgeAll;
 	unordered_map<T, vector<bool> >  markedAll;//用于计算 hasPathTo
+public:
+	map<int, vector<pair<T,T> > > border_map;//用于存储 该图通往其他图的 边界   第一个int为block id ,vector存储该图通向下一个图的所有边
 public:
 	explicit UndiGraph(int size = 20);
 	virtual ~UndiGraph();
