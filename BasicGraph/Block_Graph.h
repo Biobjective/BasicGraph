@@ -11,7 +11,7 @@
 static  int  trunkPreWeight = 10;
 
 //生成0到N-1之间的随机数
-int rand_n(int N) {
+static int rand_n(int N) {
 	//srand(time(NULL));//设置随机数种子，使每次产生的随机序列不同	
 	LARGE_INTEGER seed;
 	QueryPerformanceFrequency(&seed);
